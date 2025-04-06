@@ -15,6 +15,10 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->index()->constrained('users');
+            $table->foreignId('file_id')->nullable()->index()->constrained('files');
+
+            $table->unsignedSmallInteger('status')->default(1);
             $table->timestamps();
         });
     }

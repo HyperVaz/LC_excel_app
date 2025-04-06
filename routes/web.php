@@ -25,6 +25,10 @@ Route::get('/', function () {
     ]);
 });
 
+Route::get('/projects', [\App\Http\Controllers\ProjectController::class, 'index'])->name('project.index');
+Route::get('/projects/import', [\App\Http\Controllers\ProjectController::class, 'import'])->name('project.import');
+Route::get('/tasks', [\App\Http\Controllers\TaskController::class, 'index'])->name('task.index');
+
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
