@@ -1,5 +1,5 @@
 <template>
-    <div class="w-96 mx-auto">
+    <div class="w-4/6 mx-auto">
         <Navigation />
         <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
 
