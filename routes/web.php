@@ -32,6 +32,8 @@ Route::group(['middleware' => 'auth'], function () {
     Route::post('/projects/import', [\App\Http\Controllers\ProjectController::class, 'importStore'])
         ->name('project.import.store');
     Route::get('/tasks', [\App\Http\Controllers\TaskController::class, 'index'])->name('task.index');
+    Route::get('/tasks/${task}/failed_list', [\App\Http\Controllers\TaskController::class, 'failedList'])->name('task.failed_list');
+
 });
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
