@@ -208,16 +208,21 @@
                 </figure>
             </div>
         </div>
+        <div>
+            <pagination :meta="failedList.meta"></pagination>
+        </div>
     </div>
 </template>
 
 <script>
 import MainLayout from "@/Layouts/MainLayout.vue";
 import {Link} from "@inertiajs/vue3";
+import Pagination from "@/Components/Pagination.vue";
 export default {
     name: "Index",
     components:{
-        Link
+        Link,
+        Pagination
     },
     layout: MainLayout,
     props: [
