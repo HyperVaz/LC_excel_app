@@ -2,23 +2,33 @@
 
 namespace App\Imports;
 
+use App\Factory\ProjectDynamicFactory;
 use App\Factory\ProjectFactory;
 use App\Models\FailedRow;
+use App\Models\Payment;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Type;
 use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\RegistersEventListeners;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
+use Maatwebsite\Excel\Events\BeforeSheet;
 use Maatwebsite\Excel\Validators\Failure;
 
-class ProjectDynamicImport implements ToCollection, WithValidation, SkipsOnFailure
+class ProjectDynamicImport implements ToCollection, WithValidation, SkipsOnFailure, WithStartRow, WithEvents
 {
+    use RegistersEventListeners;
+
     private Task $task;
 
     const STATIC_ROW = 12;
+
+    private static array $headings;
 
     /**
      * ProjectImport constructor.
@@ -39,10 +49,33 @@ class ProjectDynamicImport implements ToCollection, WithValidation, SkipsOnFailu
 
         foreach ($collection as $row) {
             if (!isset($row['1'])) continue;
+            $map = $this->getRowsMap($row);
+            $projectFactory = ProjectDynamicFactory::make($typesMap, $map['static']);
 
+            dd(self::$headings);
+
+            $project = Project::UpdateOrCreate([
+                'type_id' => $projectFactory->getValues()['type_id'],
+                'title' => $projectFactory->getValues()['title'],
+                'created_at_time' => $projectFactory->getValues()['created_at_time'],
+                'contracted_at' => $projectFactory->getValues()['contracted_at']],
+                $projectFactory->getValues());
+
+            if (!isset($map['dynamic'])) continue;
+
+            $dynamicHeadings = $this->getRowsMap(self::$headings)['dynamic'];
+
+
+            foreach ($map['dynamic'] as $key=>$item){
+                Payment::create([
+                    'project_id' =>$project->id,
+                    'title' =>$dynamicHeadings[$key],
+                    'value' =>$item,
+                ]);
+             }
         }
-
     }
+
 
     private function getTypesMap($types): array
     {
@@ -53,27 +86,39 @@ class ProjectDynamicImport implements ToCollection, WithValidation, SkipsOnFailu
         return $map;
     }
 
+    private function getRowsMap($row)
+    {
+        $static = [];
+        $dynamic = [];
+        foreach ($row as $key => $value) {
+            if ($value) {
+                $key > 12 ? $dynamic[$key] = $value : $static[$key] = $value;
+            }
+        }
+
+        return [
+            'static' => $static,
+            'dynamic' => $dynamic
+        ];
+    }
+
     public function rules(): array
     {
-        return [
-//            'tip' => 'required|string',
-//            'naimenovanie' => 'required|string',
-//            'data_sozdaniia' => 'required|integer',
-//            'podpisanie_dogovora' => 'required|integer',
-//            'dedlain' => 'nullable|integer',
-//            'setevik' => 'nullable|string',
-//            'nalicie_autsorsinga' => 'nullable|string',
-//            'nalicie_investorov' => 'nullable|string',
-//            'sdaca_v_srok' => 'nullable|string',
-//            'kolicestvo_uslug' => 'nullable|integer',
-//            'kolicestvo_ucastnikov' => 'nullable|integer',
-//            'kommentarii' => 'nullable|string',
-//            'vlozenie_v_pervyi_etap' => 'nullable|integer',
-//            'vlozenie_vo_vtoroi_etap' => 'nullable|integer',
-//            'vlozenie_v_tretii_etap' => 'nullable|integer',
-//            'vlozenie_v_cetvertyi_etap' => 'nullable|integer',
-//            'znacenie_effektivnosti' => 'nullable|numeric',
-        ];
+        return array_replace([
+            '0' => 'required|string',
+            '1' => 'required|string',
+            '2' => 'required|integer',
+            '9' => 'required|integer',
+            '7' => 'nullable|integer',
+            '3' => 'nullable|string',
+            '5' => 'nullable|string',
+            '6' => 'nullable|string',
+            '8' => 'nullable|string',
+            '10' => 'nullable|integer',
+            '4' => 'nullable|integer',
+            '11' => 'nullable|string',
+            '12' => 'nullable|numeric',
+        ], $this->getDynamicValidation());
     }
 
     public function onFailure(Failure ...$failures)
@@ -81,7 +126,7 @@ class ProjectDynamicImport implements ToCollection, WithValidation, SkipsOnFailu
         $map = [];
         foreach ($failures as $failure) {
             foreach ($failure->errors() as $error) {
-                $map[]= [
+                $map[] = [
                     'key' => $this->attributesMap()[$failure->attribute()],
                     'row' => $failure->row(),
                     'message' => $error,
@@ -92,32 +137,47 @@ class ProjectDynamicImport implements ToCollection, WithValidation, SkipsOnFailu
         if (count($map) > 0) FailedRow::insertFailedRows($map, $this->task);
     }
 
-    public function customValidationMessages():array{
+    public function customValidationMessages(): array
+    {
         return [
             'data_sozdaniia.string' => 'это поле должно быть числом'
         ];
     }
 
-    private function attributesMap() : array
+    private function attributesMap(): array
     {
-        return [
-            'tip' => 'Тип',
-            'naimenovanie' => 'Наименование',
-            'data_sozdaniia' => 'Дата создания',
-            'podpisanie_dogovora' => 'Подписание договора',
-            'dedlain' => 'Дедлайн',
-            'setevik' => 'Сетевик',
-            'nalicie_autsorsinga' => 'Наличие аутсорсинга',
-            'nalicie_investorov' => 'Наличие инвесторов',
-            'sdaca_v_srok' => 'Сдача в срок',
-            'vlozenie_v_pervyi_etap' => 'Вложение в первый этап',
-            'vlozenie_vo_vtoroi_etap' => 'Вложение во второй этап',
-            'vlozenie_v_tretiy_etap' => 'Вложение в третий этап',
-            'vlozenie_v_cetvertyi_etap' => 'Вложение в четвертый этап',
-            'kolicestvo_ucastnikov' => 'Количество участников',
-            'kolicestvo_uslug' => 'Количество услуг',
-            'kommentarii' => 'Комментарий',
-            'znacenie_effektivnosti' => 'Значение эффективности',
-        ];
+        return array_replace([
+            '0' => 'Тип',
+            '1' => 'Наименование',
+            '2' => 'Дата создания',
+            '9' => 'Подписание договора',
+            '7' => 'Дедлайн',
+            '3' => 'Сетевик',
+            '5' => 'Наличие аутсорсинга',
+            '6' => 'Наличие инвесторов',
+            '8' => 'Сдача в срок',
+            '4' => 'Количество участников',
+            '10' => 'Количество услуг',
+            '11' => 'Комментарий',
+            '12' => 'Значение эффективности',
+        ], $this->getRowsMap(self::$headings)['dynamic']);
+    }
+
+    public function startRow(): int
+    {
+        return 2;
+    }
+
+    public static function beforeSheet(BeforeSheet $event)
+    {
+        self::$headings = $event->getSheet()->getDelegate()->toArray()[0];
+    }
+
+    private function getDynamicValidation():array{
+        $headers = $this->getRowsMap(self::$headings)['dynamic'];
+        foreach ($headers as $key => $value) {
+            $headers[$key] = 'required|integer';
+        }
+        return $headers;
     }
 }
