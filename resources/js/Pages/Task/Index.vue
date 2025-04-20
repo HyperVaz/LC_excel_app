@@ -1,6 +1,6 @@
 <template>
     <div>
-        НЕМОЖЕЦА
+        <p class="text-center text-xl">Задания</p>
 
         <div v-if="tasks">
             <div class="not-prose isolate">

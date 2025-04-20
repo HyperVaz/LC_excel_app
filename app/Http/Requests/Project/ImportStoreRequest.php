@@ -28,7 +28,8 @@ class ImportStoreRequest extends FormRequest
             throw ValidationException::withMessages(['Incorrect file extension']);
         }
         return [
-            'file'=>'required|file'
+            'file'=>'required|file',
+            'type'=>'required|integer|in:1,2'
         ];
     }
 }

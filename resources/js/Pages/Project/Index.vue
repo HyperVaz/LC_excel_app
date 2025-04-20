@@ -1,6 +1,6 @@
 <template>
     <div>
-        Project Index
+        <p class="text-center text-xl">Таблица проектов</p>
         <Link class="text-sm" :href="route('task.index')">Back</Link>
         <div v-if="projects">
             <div class="not-prose isolate">

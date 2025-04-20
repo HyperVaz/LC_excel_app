@@ -51,9 +51,6 @@ class ProjectDynamicImport implements ToCollection, WithValidation, SkipsOnFailu
             if (!isset($row['1'])) continue;
             $map = $this->getRowsMap($row);
             $projectFactory = ProjectDynamicFactory::make($typesMap, $map['static']);
-
-            dd(self::$headings);
-
             $project = Project::UpdateOrCreate([
                 'type_id' => $projectFactory->getValues()['type_id'],
                 'title' => $projectFactory->getValues()['title'],
@@ -123,18 +120,7 @@ class ProjectDynamicImport implements ToCollection, WithValidation, SkipsOnFailu
 
     public function onFailure(Failure ...$failures)
     {
-        $map = [];
-        foreach ($failures as $failure) {
-            foreach ($failure->errors() as $error) {
-                $map[] = [
-                    'key' => $this->attributesMap()[$failure->attribute()],
-                    'row' => $failure->row(),
-                    'message' => $error,
-                    'task_id' => $this->task->id
-                ];
-            }
-        }
-        if (count($map) > 0) FailedRow::insertFailedRows($map, $this->task);
+        processFailures($failures, $this->attributesMap(), $this->task);
     }
 
     public function customValidationMessages(): array
@@ -173,7 +159,7 @@ class ProjectDynamicImport implements ToCollection, WithValidation, SkipsOnFailu
         self::$headings = $event->getSheet()->getDelegate()->toArray()[0];
     }
 
-    private function getDynamicValidation():array{
+    private function getDynamicValidation() :array {
         $headers = $this->getRowsMap(self::$headings)['dynamic'];
         foreach ($headers as $key => $value) {
             $headers[$key] = 'required|integer';
